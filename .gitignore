@@ -15,7 +15,8 @@ build/
 .ipynb_checkpoints/
 
 # Données (auto-téléchargées)
-data/
+data/*
+!data/.gitkeep
 *.zip
 *.csv
 *.npz
