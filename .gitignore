@@ -11,18 +11,24 @@ __pycache__/
 dist/
 build/
 
+# Anciens fichiers de nettoyage
+src/nettoyage_donnees.py
+requirements_nettoyage.txt
+
 # Jupyter
 .ipynb_checkpoints/
 
-# Données (auto-téléchargées)
-data/*
-!data/.gitkeep
-*.zip
-*.csv
+# Donnees (trop volumineuses pour GitHub)
+data/
+real_data/
+Training_database*
 *.npz
 *.npy
 
-# Résultats générés
+# Documents PDF
+docs/*.pdf
+
+# Resultats generes
 resultats/*.png
 resultats/*.pth
 
