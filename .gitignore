@@ -25,12 +25,11 @@ Training_database*
 *.npz
 *.npy
 
-# Documents PDF
+# Documents PDF et rapports internes
 docs/*.pdf
+docs/evaluation.md
+docs/rapport.md
 
-# Resultats generes
-resultats/*.png
-resultats/*.pth
 
 # IDE
 .vscode/

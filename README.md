@@ -103,9 +103,7 @@ skipperndt/
 │   └── modeles/
 │       ├── cnn_simple.py      # Architecture CNN Multi-Task
 │       └── utilitaires.py     # Fonctions utilitaires
-├── docs/
-│   ├── rapport.md             # Rapport technique detaille
-│   └── evaluation.md          # Questions-reponses exhaustives
+├── docs/                      # Documentation de reference (non versionnee)
 └── resultats/                 # Genere automatiquement
     ├── meilleur_modele.pth
     ├── courbes_apprentissage.png
@@ -139,9 +137,3 @@ skipperndt/
 - **Early Stopping** (patience=7) + **ReduceLROnPlateau** (factor=0.5)
 - **Poids de classes** [1.5, 1.0] pour compenser le desequilibre
 
----
-
-## Documentation
-
-- [`docs/rapport.md`](docs/rapport.md) -- Rapport technique avec historique des ameliorations (V1 a V4)
-- [`docs/evaluation.md`](docs/evaluation.md) -- 60 questions-reponses couvrant tout le projet
