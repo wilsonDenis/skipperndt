@@ -405,7 +405,35 @@ avec_fourreau       1.00      1.00      1.00        15
 | V1 | Synth seul | 50.00% | 24.44 m |
 | V2 | +reel dans train (71 samples) | 51.61% | 13.03 m |
 | V3 | +surechantillonnage x10 | 96.77% | 14.49 m |
-| **V4** | **+surechantillonnage x20 + 35 epoques** | **100.00%** | **14.13 m** |
+| V4 | +surechantillonnage x20 + 35 epoques | 100.00% | 14.13 m (CNN) |
+| **V5** | **+mesure physique (pixels x 20cm)** | **100.00%** | **3.02 m** |
+
+
+### Version 5 (finale) : Approche hybride CNN + mesure physique
+
+Le constat avec la V4 : la classification est parfaite (100%), mais la regression CNN se trompe de ~14m en moyenne. Le CNN ne "mesure" pas, il "devine" la largeur a partir de patterns visuels. En redimensionnant toutes les images a 224x224, on perd l'information d'echelle.
+
+**La solution** : garder le CNN pour la classification (100%) et remplacer la regression CNN par un calcul physique base sur les cartes magnetiques. Chaque pixel represente 20cm de terrain.
+
+**L'algorithme** (fichier `src/mesure_largeur.py`) :
+
+1. Calculer la norme des 4 canaux magnetiques : `norme = sqrt(c0^2 + c1^2 + c2^2 + c3^2)`
+2. Normaliser entre 0 et 1
+3. Trouver le centre du fourreau avec `scipy.ndimage.center_of_mass`
+4. Prendre un cross-section de 5 pixels de large au centre, dans les deux directions (horizontal et vertical)
+5. Mesurer la largeur a 30% du pic d'intensite (variante du FWHM)
+6. Prendre la plus petite dimension (le fourreau est lineaire : long dans un sens, etroit dans l'autre)
+7. Convertir en metres : `largeur_pixels x 0.20m`
+
+**Resultats finaux** :
+
+| Metrique | Synthetique | Reel |
+|----------|:-----------:|:----:|
+| Classification | 98.59% | **100.00%** |
+| Regression CNN | 12.11 m | 14.91 m |
+| **Mesure Physique** | -- | **3.02 m** |
+
+La mesure physique est **5x plus precise** que la regression CNN (3.02m vs 14.91m de MAE).
 
 
 ---

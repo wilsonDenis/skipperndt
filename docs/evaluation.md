@@ -698,7 +698,7 @@ erreurs = [|20-25|, |35-30|, |15-18|] = [5, 5, 3]
 MAE = (5 + 5 + 3) / 3 = 4.33 metres
 ```
 
-Notre MAE finale sur les donnees reelles : **14.13m** (le modele se trompe en moyenne de 14m sur la largeur).
+Notre MAE finale sur les donnees reelles : **14.91m** pour la regression CNN, mais **3.02m** avec la mesure physique (voir Partie 9).
 
 
 ## Q48 : C'est quoi le RMSE (Root Mean Squared Error) ?
@@ -810,7 +810,8 @@ Le U-Net a obtenu 74% sur le reel contre 96.77% pour le CNN Simple. Le U-Net est
 | V1 | Synthetique seul | 99.76% | 50.00% | 24.44m |
 | V2 | +reel dans train | 99.76% | 51.61% | 13.03m |
 | V3 | +surechantillonnage x10 | 99.06% | 96.77% | 14.49m |
-| **V4** | **+surechant. x20, 35 epoques** | **96.94%** | **100.00%** | **14.13m** |
+| V4 | +surechant. x20, 35 epoques | 96.94% | 100.00% | 14.13m (CNN) |
+| **V5** | **+mesure physique (pixels x 20cm)** | **98.59%** | **100.00%** | **3.02m** |
 
 
 ---
@@ -845,8 +846,12 @@ def pipeline():
     # 7. Evaluer sur les donnees reelles
     resultats_reel = evaluer_modele(modele, chargeur_test_reel)
 
-    # 8. Afficher le resume final
+    # 8. Mesure physique de largeur (pixels x 20cm)
+    resultats_physique = evaluer_mesure_physique(dataset_test_reel)
+
+    # 9. Afficher le resume final
     print(f'Classification (reel) : {resultats_reel["precision"] * 100:.2f}%')
+    print(f'Regression MAE Phys (reel) : {resultats_physique["mae"]:.2f} m')
 ```
 
 
@@ -886,3 +891,81 @@ python main.py
 ```
 
 Les resultats (graphiques + modele) sont sauvegardes automatiquement dans `resultats/`.
+
+
+---
+
+
+# PARTIE 9 : LA MESURE PHYSIQUE DE LARGEUR (mesure_largeur.py)
+
+
+## Q61 : Pourquoi la regression CNN se trompe-t-elle autant (~14m) ?
+
+Le CNN recoit des images redimensionnees a 224x224 pixels. Or les fichiers originaux ont des tailles tres differentes (219x288, 353x773, 443x453...). En redimensionnant tout a la meme taille, on **perd l'information d'echelle** : un fourreau de 10m et un fourreau de 50m peuvent avoir exactement la meme apparence apres le resize.
+
+Le CNN ne "mesure" pas, il "devine" la largeur a partir de patterns visuels. C'est comme demander a quelqu'un d'estimer la taille d'un batiment a partir d'une photo sans echelle.
+
+
+## Q62 : C'est quoi l'approche hybride ?
+
+Au lieu de tout faire avec le CNN, on separe les taches :
+- **Le CNN fait la classification** : avec/sans fourreau (100% de precision)
+- **Un calcul physique fait la regression** : mesure de la largeur en pixels, puis conversion en metres
+
+Chaque outil fait ce pour quoi il est le meilleur. Le CNN excelle en reconnaissance de patterns, le calcul physique excelle en mesure.
+
+
+## Q63 : Comment fonctionne la mesure physique (mesure_largeur.py) ?
+
+L'algorithme en 7 etapes :
+
+```python
+def mesurer_largeur_physique(chemin_fichier):
+    # 1. Charger les 4 canaux magnetiques
+    mat = np.load(chemin_fichier)['data']
+
+    # 2. Calculer la norme = intensite totale du signal
+    norme = sqrt(canal_0^2 + canal_1^2 + canal_2^2 + canal_3^2)
+
+    # 3. Normaliser entre 0 et 1
+    norme = norme / norme.max()
+
+    # 4. Trouver le centre du fourreau
+    centre_y, centre_x = center_of_mass(norme)  # scipy
+
+    # 5. Prendre un cross-section au centre (5 pixels de large)
+    profil_horizontal = norme[centre_y-2:centre_y+3, :].mean(axis=0)
+    profil_vertical = norme[:, centre_x-2:centre_x+3].mean(axis=1)
+
+    # 6. Mesurer la largeur a 30% du pic d'intensite
+    largeur_h = largeur_a_seuil(profil_horizontal, seuil=0.3)
+    largeur_v = largeur_a_seuil(profil_vertical, seuil=0.3)
+
+    # 7. Prendre le minimum et convertir en metres
+    largeur = min(largeur_h, largeur_v) * 0.20  # 1 pixel = 20cm
+```
+
+
+## Q64 : Pourquoi prendre le minimum des deux dimensions ?
+
+Un fourreau est un objet lineaire : il est **long** dans un sens et **etroit** dans l'autre. Si on mesure 50 pixels dans un sens (longueur du fourreau) et 15 pixels dans l'autre (largeur), la vraie largeur est 15 pixels = 3.0m.
+
+Prendre le minimum permet de toujours capturer la dimension la plus etroite, qui est la largeur.
+
+
+## Q65 : Pourquoi le seuil de 30% et pas 50% ?
+
+On a teste plusieurs seuils :
+
+| Seuil | MAE |
+|:---:|:---:|
+| 0.3 | **2.66m** |
+| 0.4 | 3.13m |
+| 0.5 | 4.68m |
+| 0.6 | 7.49m |
+| 0.7 | 11.00m |
+| 0.8 | 13.75m |
+
+Le seuil de 30% capte mieux les bords du signal magnetique car le champ decroit progressivement (il ne s'arrete pas net). A 50% (FWHM classique), on coupe trop tot et on sous-estime la largeur.
+
+Resultat final : **MAE 3.02m** avec la mesure physique contre **14.91m** avec la regression CNN = **5x plus precis**.

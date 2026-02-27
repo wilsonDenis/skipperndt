@@ -1,5 +1,6 @@
 import os
 import sys
+import numpy as np
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -13,6 +14,36 @@ from src.evaluation import (
     afficher_resultats_regression,
     afficher_exemples_predictions,
 )
+from src.mesure_largeur import mesurer_largeur_physique
+
+
+def evaluer_mesure_physique(dataset_test_reel):
+    chemins = dataset_test_reel.chemins_fichiers
+    etiquettes = dataset_test_reel.etiquettes
+    largeurs_vraies = dataset_test_reel.largeurs
+
+    erreurs = []
+    print(f'\n  Mesure physique sur {len(chemins)} echantillons reels :')
+
+    for i in range(len(chemins)):
+        if etiquettes[i] != 1:
+            continue
+
+        largeur_reelle = largeurs_vraies[i]
+        largeur_mesuree = mesurer_largeur_physique(chemins[i])
+        erreur = abs(largeur_mesuree - largeur_reelle)
+        erreurs.append(erreur)
+
+    if len(erreurs) > 0:
+        mae = np.mean(erreurs)
+        rmse = np.sqrt(np.mean([e ** 2 for e in erreurs]))
+        print(f'    Echantillons avec pipe : {len(erreurs)}')
+        print(f'    MAE  : {mae:.2f} m')
+        print(f'    RMSE : {rmse:.2f} m')
+        return {'mae': mae, 'rmse': rmse}
+
+    print('    Aucun echantillon avec pipe.')
+    return {'mae': 0.0, 'rmse': 0.0}
 
 
 def pipeline():
@@ -50,6 +81,7 @@ def pipeline():
     afficher_matrice_confusion(resultats_synth, suffixe=' (Synthetique)')
     afficher_resultats_regression(resultats_synth, suffixe=' (Synthetique)')
 
+    resultats_reel_physique = None
     if chargeur_test_reel is not None:
         print('\n' + '=' * 60)
         print('  EVALUATION SUR DONNEES REELLES')
@@ -57,6 +89,12 @@ def pipeline():
         resultats_reel = evaluer_modele(modele, chargeur_test_reel, nom_ensemble='Test Reel')
         afficher_matrice_confusion(resultats_reel, suffixe=' (Reel)')
         afficher_resultats_regression(resultats_reel, suffixe=' (Reel)')
+
+        print('\n' + '=' * 60)
+        print('  MESURE PHYSIQUE DE LARGEUR (1 pixel = 20cm)')
+        print('=' * 60)
+        from src.mesure_largeur import mesurer_largeur_physique
+        resultats_reel_physique = evaluer_mesure_physique(dataset_test_reel)
 
     print('\n' + '=' * 60)
     print('  RESUME FINAL')
@@ -66,7 +104,9 @@ def pipeline():
     print(f'  Regression MAE (synth) : {resultats_synth["mae"]:.2f} m')
     if chargeur_test_reel is not None:
         print(f'  Classification (reel)  : {resultats_reel["precision"] * 100:.2f}%')
-        print(f'  Regression MAE (reel)  : {resultats_reel["mae"]:.2f} m')
+        print(f'  Regression MAE CNN (reel)  : {resultats_reel["mae"]:.2f} m')
+    if resultats_reel_physique is not None:
+        print(f'  Regression MAE Phys (reel) : {resultats_reel_physique["mae"]:.2f} m')
     print('=' * 60)
 
     afficher_exemples_predictions(modele, chargeur_test_synth, nombre=8)
